@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Hello, {{ user.username }}!</h1>
+<h1>Our posts!</h1>
 {% for post in posts %}
-<p>{{ post.author.nickname }} says: <b>{{ post.body}}</b></p>
+    <a href="{{ url_for('post', post_id=post['id']) }}">
+            <h2>{{ post['title'] }}</h2>
+        </a>
+        <span class="badge badge-primary">{{ post['created'] }}</span>
+        <hr>
 {% endfor %}
 {% endblock %}
