@@ -1,13 +1,13 @@
 import sqlite3
 
-from flask import Flask, render_template, flash, redirect
+from flask import Flask, render_template, flash, redirect, url_for, request
 from flask_wtf.csrf import CSRFProtect
-from forms import LoginForm
 from werkzeug.exceptions import abort
 
 csrf = CSRFProtect()
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'enter-secret-key-later'
 app.config.from_object('config')
 
 
@@ -51,18 +51,55 @@ def post(post_id):
     )
 
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    form = LoginForm()
-    if form.validate_on_submit():
-        flash('Login requested for OpenID="' + form.openid.data + '", remember_me=' + str(form.remember_me.data))
-        return redirect('/index')
-    return render_template(
-        'login.html',
-        title='Sign In',
-        form=form,
-        providers=app.config['OPENID_PROVIDERS']
-    )
+@app.route('/create', methods=('GET', 'POST'))
+def create():
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+
+        if not title:
+            flash('Title is required!')
+        else:
+            conn = get_db_connection()
+            conn.execute('INSERT INTO posts (title, content) VALUES (?, ?)',
+                         (title, content))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('index'))
+
+    return render_template('create.html')
+
+
+@app.route('/<int:post_id>/edit', methods=('GET', 'POST'))
+def edit(post_id):
+    post = get_post(post_id)
+
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+
+        if not title:
+            flash('Title is required!')
+        else:
+            conn = get_db_connection()
+            conn.execute('UPDATE posts SET title = ?, content = ?'
+                         'WHERE id = ?',
+                         (title, content, post_id))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('index'))
+    return render_template('edit.html', post=post)
+
+
+@app.route('/<int:post_id>/delete', methods=('POST',))
+def delete(post_id):
+    post = get_post(post_id)
+    conn = get_db_connection()
+    conn.execute('DELETE FROM posts WHERE id = ?', (post_id,))
+    conn.commit()
+    conn.close()
+    flash(f'{post["title"]} was successfully deleted!')
+    return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
